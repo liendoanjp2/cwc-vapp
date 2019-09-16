@@ -93,7 +93,7 @@ namespace VEYMDataParser
                 jp2Worksheet.Cells[2, 1].LoadFromArrays(jp2DataOut);
                 jp2Worksheet.Cells.AutoFitColumns();
 
-                FileInfo excelFile = new FileInfo(@"C:\Users\Philips\Desktop\VEYM_Dump.xlsx");
+                FileInfo excelFile = new FileInfo(@"C:\Users\"+ Environment.UserName + @"\Desktop\VEYM_Dump.xlsx");
                 excel.SaveAs(excelFile);
 
                 MessageBox.Show("Data Scrape Finished");
