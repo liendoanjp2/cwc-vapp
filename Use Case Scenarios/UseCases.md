@@ -30,7 +30,7 @@ SEARCH AND VIEW OTHER HTs Profile
 	- See above profile info
 
 ==================
-*What basic users are able to access:
+*What basic users are able to access, currently:
 
 - Names of all HTs
 - VEYM emails of all HTs
