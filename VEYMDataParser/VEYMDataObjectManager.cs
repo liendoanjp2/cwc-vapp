@@ -14,10 +14,19 @@ namespace VEYMDataParser
     {
         List<AllUsersDataObject.Value> allHTandFriends;
         readonly string[] doansInJP2 = new string[19] { "Kitô Vua - (Wheat Ridge, CO)", "Anrê Dũng Lạc - (Charlotte, NC)", "Anre Dung Lac - (Kansas City, MO)", "Anrê Dũng Lạc - (Lincoln, NE)", "Anrê Phú Yên - (Dayton, OH)", "Anrê Trần Anh Dũng - (Warren, MI)", "Chúa Cứu Thế - (Louisville, KY)", "Chúa Thăng Thiên - (St. Louis, MO)", "Đồng Hành - (Franklin, WI)", "Kito Vua - (Wichita, KS)", "Maria Nu Vuong - (Lincoln, NE)", "Nguồn Sống - (Glen Ellyn, IL)", "Phaolo Buong- (St. Paul, MN)", "Phaolô Hạnh - (Des Moines, IA)", "Phêrô - (Lansing, MI)", "Sao Biển - (Chicago, IL)", "Thánh Giuse - (Minneapolis, MN)", "Thánh Tâm - (Cincinnati, OH)", "Tôma Thiện - (Buffalo, NY)" };
+        //Dictionary of (doan, HT email)
+        IDictionary<string, List<string>> doansAndTheirHT;
 
         public VEYMDataObjectManager(List<AllUsersDataObject.RootObject> pages)
         {
             allHTandFriends = new List<AllUsersDataObject.Value>();
+            doansAndTheirHT = new Dictionary<string, List<string>>();
+
+            //initalize the "buckets" to sort out the HT
+            foreach(string doan in doansInJP2)
+            {
+                doansAndTheirHT.Add(doan, new List<string>());
+            }
 
             //Break it down
             foreach (AllUsersDataObject.RootObject page in pages)
@@ -73,15 +82,23 @@ namespace VEYMDataParser
                 List<string[]> jp2DataOut = new List<string[]>();
 
                 string[] htAsStringArray;
+                List<string> htEmails;
 
                 //Add in everything else
                 foreach (AllUsersDataObject.Value HT in allHTandFriends)
                 {
                     htAsStringArray = new string[7] { HT.displayName, HT.givenName, HT.jobTitle, HT.mail, HT.mobilePhone, HT.officeLocation, HT.id };
-                    
+
                     if (doansInJP2.Contains(HT.officeLocation))
                     {
+                        //Add the HT to the jp2 colleciton
                         jp2DataOut.Add(htAsStringArray);
+
+                        //Grab the value paired to the doan key
+                        doansAndTheirHT.TryGetValue(HT.officeLocation, out htEmails);
+
+                        //add the HT email specifically to the Email List
+                        htEmails.Add(HT.mail);
                     }
 
                     allDataOut.Add(htAsStringArray);
@@ -95,6 +112,33 @@ namespace VEYMDataParser
 
                 FileInfo excelFile = new FileInfo(@"C:\Users\"+ Environment.UserName + @"\Desktop\VEYM_Dump.xlsx");
                 excel.SaveAs(excelFile);
+
+                //Folder containing all Doan's emials
+                string doanEamilsFolder = @"C:\Users\" + Environment.UserName + @"\Desktop\Doan Emails\";
+                if (!Directory.Exists(doanEamilsFolder))
+                {
+                    DirectoryInfo di = Directory.CreateDirectory(doanEamilsFolder);
+                }
+
+                StringBuilder lineOfAllHTEmails = new StringBuilder();
+                foreach (string doan in doansAndTheirHT.Keys)
+                {
+                    using (System.IO.StreamWriter outfile = new System.IO.StreamWriter(doanEamilsFolder + @"\" + doan + ".txt"))
+                    {
+                        outfile.WriteLine(doan);
+
+                        doansAndTheirHT.TryGetValue(doan, out htEmails);
+                        
+                        foreach (string htEmail in htEmails)
+                        {
+                            lineOfAllHTEmails.Append(htEmail);
+                            lineOfAllHTEmails.Append(';');
+                        }
+
+                        outfile.WriteLine(lineOfAllHTEmails.ToString());
+                        lineOfAllHTEmails.Clear();
+                    }
+                }
 
                 MessageBox.Show("Data Scrape Finished");
             }
