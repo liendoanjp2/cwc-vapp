@@ -71,8 +71,6 @@ namespace VEYMDataParser
                     graphAPIEndpoint = page.nextLink;
                 }
 
-                MessageBox.Show("Please Wait");
-
                 ourGiantCollection = new VEYMDataObjectManager(allPages);
             }
         }

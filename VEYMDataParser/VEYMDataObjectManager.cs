@@ -47,6 +47,11 @@ namespace VEYMDataParser
                 excel.Workbook.Worksheets.Add("All of VEYM");
                 excel.Workbook.Worksheets.Add("JPII");
 
+                foreach(string doan in doansInJP2)
+                {
+                    excel.Workbook.Worksheets.Add(doan);
+                }
+
                 List<string[]> headerRow = new List<string[]>()
                 {
                      new string[] { "Name", "First Name", "Rank/Title", "Email", "Phone", "Doan", "ID" }
@@ -58,13 +63,22 @@ namespace VEYMDataParser
                 // Target a worksheet
                 ExcelWorksheet allWorksheet = excel.Workbook.Worksheets["All of VEYM"];
                 ExcelWorksheet jp2Worksheet = excel.Workbook.Worksheets["JPII"];
+                List<ExcelWorksheet> doanWorksheets = new List<ExcelWorksheet>();
+                foreach (string doan in doansInJP2)
+                {
+                    doanWorksheets.Add(excel.Workbook.Worksheets[doan]);
+                }
 
                 List<ExcelWorksheet> allWorksheets = new List<ExcelWorksheet>();
 
                 allWorksheets.Add(allWorksheet);
                 allWorksheets.Add(jp2Worksheet);
+                foreach (ExcelWorksheet doanSheet in doanWorksheets)
+                {
+                    allWorksheets.Add(doanSheet);
+                }
 
-                foreach(ExcelWorksheet myWorksheet in allWorksheets)
+                foreach (ExcelWorksheet myWorksheet in allWorksheets)
                 {
                     //Style the worksheet
                     myWorksheet.Cells[headerRange].Style.Font.Bold = true;
@@ -78,8 +92,18 @@ namespace VEYMDataParser
                 //master List of Arrays
                 List<string[]> allDataOut = new List<string[]>();
 
-                //Each Doan
+                //All of Jp2
                 List<string[]> jp2DataOut = new List<string[]>();
+                //All the Doans Specifically
+                Dictionary<string, List<string[]>> doansDataOutDictionary = new Dictionary<string, List<string[]>>();
+                //For use of each doan
+                List<string[]> doanDataOut = new List<string[]>();
+
+                foreach (string doan in doansInJP2)
+                {
+                    doansDataOutDictionary.Add(doan, new List<string[]>());
+                }
+
 
                 string[] htAsStringArray;
                 List<string> htEmails;
@@ -93,6 +117,11 @@ namespace VEYMDataParser
                     {
                         //Add the HT to the jp2 colleciton
                         jp2DataOut.Add(htAsStringArray);
+
+                        //Grab the value paired to the doan key
+                        doansDataOutDictionary.TryGetValue(HT.officeLocation, out doanDataOut);
+                        //add the HT specifically to the Doan page
+                        doanDataOut.Add(htAsStringArray);
 
                         //Grab the value paired to the doan key
                         doansAndTheirHT.TryGetValue(HT.officeLocation, out htEmails);
@@ -109,6 +138,17 @@ namespace VEYMDataParser
 
                 jp2Worksheet.Cells[2, 1].LoadFromArrays(jp2DataOut);
                 jp2Worksheet.Cells.AutoFitColumns();
+
+                foreach(ExcelWorksheet myWorksheet in allWorksheets)
+                {
+                    if(myWorksheet.Name != "All of VEYM" && myWorksheet.Name != "JPII")
+                    {
+                        //Grab the value paired to the doan key
+                        doansDataOutDictionary.TryGetValue(myWorksheet.Name, out doanDataOut);
+                        myWorksheet.Cells[2, 1].LoadFromArrays(doanDataOut);
+                        myWorksheet.Cells.AutoFitColumns();
+                    }
+                }
 
                 FileInfo excelFile = new FileInfo(@"C:\Users\"+ Environment.UserName + @"\Desktop\VEYM_Dump.xlsx");
                 excel.SaveAs(excelFile);
