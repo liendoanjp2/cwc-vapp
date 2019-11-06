@@ -38,7 +38,6 @@ namespace VEYMDataParser
         /// Path to the token cache
         /// </summary>
         public static readonly string CacheFilePath = System.Reflection.Assembly.GetExecutingAssembly().Location + ".msalcache.bin3";
-
         private static readonly object FileLock = new object();
 
         public static void BeforeAccessNotification(TokenCacheNotificationArgs args)

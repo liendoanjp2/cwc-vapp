@@ -17,6 +17,7 @@ namespace VEYMDataParser
     {
         private AuthenticationResult authentication;
         VEYMDataObjectManager ourGiantCollection;
+        VEYMDataObjectManagerBETA ourGiantCollectionBETA;
 
         public MainForm(AuthenticationResult auth)
         {
@@ -29,6 +30,54 @@ namespace VEYMDataParser
         {
             ScrapeHelper();
         }
+
+        private void buttonBETA_Click(object sender, EventArgs e)
+        {
+            ScrapeHelperBETA();
+        }
+
+        private async void ScrapeHelper()
+        {
+            if (authentication != null)
+            {
+                string graphAPIEndpoint = "https://graph.microsoft.com/v1.0/users";
+                string json;
+                List<AllUsersDataObject.RootObject> allPages = new List<AllUsersDataObject.RootObject>();
+
+                while (!String.IsNullOrEmpty(graphAPIEndpoint))
+                {
+                    json = await GetHttpContentWithToken(graphAPIEndpoint, authentication.AccessToken);
+                    AllUsersDataObject.RootObject page = JsonConvert.DeserializeObject<AllUsersDataObject.RootObject>(json);
+                    allPages.Add(page);
+                    graphAPIEndpoint = page.nextLink;
+                }
+
+                ourGiantCollection = new VEYMDataObjectManager(allPages);
+            }
+        }
+
+        private async void ScrapeHelperBETA()
+        {
+            if (authentication != null)
+            {
+                string graphAPIEndpoint = "https://graph.microsoft.com/beta/users";
+                string json;
+                List<AllUsersDataObjectBETA.RootObject> allPages = new List<AllUsersDataObjectBETA.RootObject>();
+
+                while (!String.IsNullOrEmpty(graphAPIEndpoint))
+                {
+                    json = await GetHttpContentWithToken(graphAPIEndpoint, authentication.AccessToken);
+                    AllUsersDataObjectBETA.RootObject page = JsonConvert.DeserializeObject<AllUsersDataObjectBETA.RootObject>(json);
+                    allPages.Add(page);
+                    graphAPIEndpoint = page.nextLink;
+                }
+
+                ourGiantCollectionBETA = new VEYMDataObjectManagerBETA(allPages);
+            }
+        }
+
+
+
 
         /// <summary>
         /// Perform an HTTP GET request to a URL using an HTTP Authorization header
@@ -52,26 +101,6 @@ namespace VEYMDataParser
             catch (Exception ex)
             {
                 return ex.ToString();
-            }
-        }
-
-        private async void ScrapeHelper()
-        {
-            if (authentication != null)
-            {
-                string graphAPIEndpoint = "https://graph.microsoft.com/v1.0/users";
-                string json;
-                List<AllUsersDataObject.RootObject> allPages = new List<AllUsersDataObject.RootObject>();
-
-                while (!String.IsNullOrEmpty(graphAPIEndpoint))
-                {
-                    json = await GetHttpContentWithToken(graphAPIEndpoint, authentication.AccessToken);
-                    AllUsersDataObject.RootObject page = JsonConvert.DeserializeObject<AllUsersDataObject.RootObject>(json);
-                    allPages.Add(page);
-                    graphAPIEndpoint = page.nextLink;
-                }
-
-                ourGiantCollection = new VEYMDataObjectManager(allPages);
             }
         }
 
