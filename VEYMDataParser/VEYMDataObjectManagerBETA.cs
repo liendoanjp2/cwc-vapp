@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Office.Interop.Excel;
@@ -47,7 +48,6 @@ namespace VEYMDataParser
 
             SortUsers();
             CreateExcel();
-            PopulateExcel();
         }
 
         private void SortUsers()
@@ -64,76 +64,73 @@ namespace VEYMDataParser
             string stateAbbrev;
             string actuaChapterName;
             string shortnedName;
-            try
+
+            string pattern = @"^[ a-z0-9A-Z_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ]+[ ][-][ ][(][a-zA-Z]+[,][ ][a-zA-Z]+[)]$";
+            Match match;
+            string ldWorkName;
+
+            foreach (AllUsersDataObjectBETA.Value user in allUserValues)
             {
-                foreach (AllUsersDataObjectBETA.Value user in allUserValues)
+                //Do not add wonky users
+                if(!user.displayName.Contains('@'))
                 {
-                    Console.WriteLine(user.mail);
-                    UserAsStringArray = new string[7] { user.displayName, user.rank, user.mail, user?.otherMails?.FirstOrDefault()?.ToString() ?? "", user.mobilePhone, user.leauge, user.officeLocation };
+                    UserAsStringArray = new string[8] { user.displayName, user.rank, user.memberID, user.mail, user?.otherMails?.FirstOrDefault()?.ToString() ?? "", user.mobilePhone, user.leauge, user.chapter };
                     if (!string.IsNullOrEmpty(user.leauge))
                     {
+                        ldWorkName = "LD " + user.leauge;
+
                         //check if key exists first, if not add one!
-                        if (!leaugesAndTheirUsers.ContainsKey(user.leauge))
+                        if (!leaugesAndTheirUsers.ContainsKey(ldWorkName))
                         {
-                            leaugesAndTheirUsers.Add(user.leauge, new List<string[]>());
+                            leaugesAndTheirUsers.Add(ldWorkName, new List<string[]>());
                         }
 
                         //add them!
-                        leaugesAndTheirUsers.TryGetValue(user.leauge, out outUserValues);
+                        leaugesAndTheirUsers.TryGetValue(ldWorkName, out outUserValues);
                         outUserValues.Add(UserAsStringArray);
                     }
 
                     if (!string.IsNullOrEmpty(user.officeLocation))
                     {
-                        //There are chapters without a -
-                        if (user.officeLocation.Contains("-") && user.officeLocation.Contains(" "))
+
+                        match = Regex.Match(user.officeLocation, pattern, RegexOptions.IgnoreCase);
+                        //Use Regex to find if the names are "Valid"
+
+                        ////There are chapters without a -
+
+                        //Need to Break down the Doan name. only 10 characters, no dashes. Sheets are Doan + State Abbrev
+                        //Trim there's bad data with spaces at the end! Handling no state
+
+                        if (match.Success)
                         {
-                            //Need to Break down the Doan name. only 10 characters, no dashes. Sheets are Doan + State Abbrev
-                            //Trim there's bad data with spaces at the end! Handling no state
+                            stateAbbrev = user.officeLocation.Substring(user.officeLocation.Trim().LastIndexOf(" ") + 1, 2);
 
-                            if(user.officeLocation.Trim().LastIndexOf(" ") + 3 < user.officeLocation.Trim().Length)
-                            {
-                                stateAbbrev = user.officeLocation.Substring(user.officeLocation.Trim().LastIndexOf(" ") + 1, 2);
-                            }
-                            else
-                            {
-                                stateAbbrev = "";
-
-                            }
-                            
                             actuaChapterName = user.officeLocation.Substring(0, user.officeLocation.IndexOf("-") - 1);
                             shortnedName = actuaChapterName + " " + stateAbbrev;
-                        }
-                        else
-                        {
-                            shortnedName = user.officeLocation;
+
+                            if (!chaptersAndTheirUsers.ContainsKey(shortnedName))
+                            {
+                                chaptersAndTheirUsers.Add(shortnedName, new List<string[]>());
+                            }
+
+                            chaptersAndTheirUsers.TryGetValue(shortnedName, out outUserValues);
+                            outUserValues.Add(UserAsStringArray);
                         }
 
-                        if (!chaptersAndTheirUsers.ContainsKey(shortnedName))
-                        {
-                            chaptersAndTheirUsers.Add(shortnedName, new List<string[]>());
-                        }
-
-                        chaptersAndTheirUsers.TryGetValue(shortnedName, out outUserValues);
-                        outUserValues.Add(UserAsStringArray);
                     }
 
                     allUserData.Add(UserAsStringArray);
                 }
             }
-            catch(Exception ex)
-            {
-
-            }
-
         }
+
 
         private void CreateExcel()
         {
             //This is the header that goes on top of each Worksheet
             List<string[]> headerRow = new List<string[]>()
                 {
-                     new string[] { "Name", "Rank/Title", "VEYM Email", "Other Email" , "Phone", "Leauge", "Chapter" }
+                     new string[] { "Name", "Rank/Title","Member ID", "VEYM Email", "Other Email" , "Phone", "Leauge", "Chapter" }
                 };
 
             // Determine the header range (e.g. A1:E1), this is the "Size"
@@ -159,62 +156,68 @@ namespace VEYMDataParser
                     allWorksheets.Add(excel.Workbook.Worksheets[leauge]);
                 }
 
+                List<string> chaptersToUpper = new List<string>();
+                string upperName;
+
+                List<string> sortedChaptersAndTheirUsers = chaptersAndTheirUsers.Keys.ToList();
+                sortedChaptersAndTheirUsers.Sort();
+
                 //Create Worksheets for each chapter and populate the look up dictionary
-                foreach (string shortenedChapter in chaptersAndTheirUsers.Keys)
+                foreach (string shortenedChapter in sortedChaptersAndTheirUsers)
                 {
-                    //rule out the super funky
-                    if(!shortenedChapter.Contains("-"))
+                    //dominico savio AZ has ugly name of one upper and one lower, this checks and accounts for that... urgg
+                    upperName = shortenedChapter.ToUpper();
+
+                    if (!chaptersToUpper.Contains(upperName))
                     {
-                        if(shortenedChapter != "Canada" || shortenedChapter != "dominico savio AZ")
-                        {
-                            excel.Workbook.Worksheets.Add(shortenedChapter);
-                            allWorksheets.Add(excel.Workbook.Worksheets[shortenedChapter]);
-                        }
+                        excel.Workbook.Worksheets.Add(shortenedChapter);
+                        allWorksheets.Add(excel.Workbook.Worksheets[shortenedChapter]);
+                        chaptersToUpper.Add(upperName);
                     }
                 }
 
-                //Style Each worksheet
+                //Style + fill Each worksheet
+                List<string[]> populateData;
+
                 foreach (ExcelWorksheet myWorksheet in allWorksheets)
                 {
-                    //Style the worksheet
-                    myWorksheet.Cells[headerRange].Style.Font.Bold = true;
-                    myWorksheet.Cells[headerRange].Style.Font.Size = 24;
-                    myWorksheet.Cells[headerRange].Style.Font.Color.SetColor(System.Drawing.Color.Blue);
+                    //There are failed worksheets! Name is too long I think
+                    if (myWorksheet != null)
+                    {
+                        //Style the worksheet
+                        myWorksheet.Cells[headerRange].Style.Font.Bold = true;
+                        myWorksheet.Cells[headerRange].Style.Font.Size = 24;
+                        myWorksheet.Cells[headerRange].Style.Font.Color.SetColor(System.Drawing.Color.Blue);
 
-                    // Populate header row data
-                    myWorksheet.Cells[headerRange].LoadFromArrays(headerRow);
+                        // Populate header row data
+                        myWorksheet.Cells[headerRange].LoadFromArrays(headerRow);
+
+                        //find which data array to populate
+                        if (leaugesAndTheirUsers.Keys.Contains(myWorksheet.Name))
+                        {
+                            leaugesAndTheirUsers.TryGetValue(myWorksheet.Name, out populateData);
+                        }
+                        else if (chaptersAndTheirUsers.Keys.Contains(myWorksheet.Name))
+                        {
+                            chaptersAndTheirUsers.TryGetValue(myWorksheet.Name, out populateData);
+                        }
+                        else
+                        {
+                            populateData = allUserData;
+                        }
+
+                        myWorksheet.Cells[2, 1].LoadFromArrays(populateData);
+                        myWorksheet.Cells.AutoFitColumns();
+
+                    }
                 }
+
+                //Save it off to the desktop!
+                FileInfo excelFile = new FileInfo(@"C:\Users\" + Environment.UserName + @"\Desktop\VEYM_Dump.xlsx");
+                excel.SaveAs(excelFile);
+
+                MessageBox.Show("DONE!");
             }
-        }
-
-        private void PopulateExcel()
-        {
-            List<string[]> populateData;
-
-            foreach (ExcelWorksheet worksheet in allWorksheets)
-            {
-
-                //find which data array to populate
-                if (leaugesAndTheirUsers.Keys.Contains(worksheet.Name))
-                {
-                    leaugesAndTheirUsers.TryGetValue(worksheet.Name, out populateData);
-                }
-                else if (chaptersAndTheirUsers.Keys.Contains(worksheet.Name))
-                {
-                    chaptersAndTheirUsers.TryGetValue(worksheet.Name, out populateData);
-                }
-                else
-                {
-                    populateData = allUserData;
-                }
-
-                worksheet.Cells[2, 1].LoadFromArrays(populateData);
-                worksheet.Cells.AutoFitColumns();
-            }
-
-            //Save it off to the desktop!
-            FileInfo excelFile = new FileInfo(@"C:\Users\" + Environment.UserName + @"\Desktop\VEYM_Dump.xlsx");
-            excel.SaveAs(excelFile);
         }
     }
 }
