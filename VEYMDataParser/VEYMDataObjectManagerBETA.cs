@@ -62,11 +62,15 @@ namespace VEYMDataParser
 
             //Variables used to shorten names in a more "english" manner
             string stateAbbrev;
-            string actuaChapterName;
+            string actualChapterName;
             string shortnedName;
 
-            string pattern = @"^[ a-z0-9A-Z_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ]+[ ][-][ ][(][a-zA-Z]+[,][ ][a-zA-Z]+[)]$";
+            string patternNorm = @"^[ a-z0-9A-Z_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ]+[ ][-][ ][(][a-zA-Z]+[,][ ][a-zA-Z]+[)]$";
+            string patternID = @"LD[0-9]{2}-[A-Z]{2}[0-9]+";
+            string patternIDOnly = @"^LD[0-9]{2}-[A-Z]{2}[0-9]+$";
+            string leaugeChapterID;
             Match match;
+            int actualLengthOfChapter;
             string ldWorkName;
 
             foreach (AllUsersDataObjectBETA.Value user in allUserValues)
@@ -74,7 +78,18 @@ namespace VEYMDataParser
                 //Do not add wonky users
                 if(!user.displayName.Contains('@'))
                 {
-                    UserAsStringArray = new string[8] { user.displayName, user.rank, user.memberID, user.mail, user?.otherMails?.FirstOrDefault()?.ToString() ?? "", user.mobilePhone, user.leauge, user.chapter };
+                    leaugeChapterID = "";
+
+                    if(!string.IsNullOrEmpty(user.chapter))
+                    {
+                        match = Regex.Match(user.chapter, patternID, RegexOptions.IgnoreCase);
+                        if (match.Success)
+                        {
+                            leaugeChapterID = match.Value;
+                        }
+                    }
+
+                    UserAsStringArray = new string[9] { user.displayName, user.rank, user.memberID, user.mail, user?.otherMails?.FirstOrDefault()?.ToString() ?? "", user.mobilePhone, user.leauge, user.officeLocation, leaugeChapterID };
                     if (!string.IsNullOrEmpty(user.leauge))
                     {
                         ldWorkName = "LD " + user.leauge;
@@ -92,8 +107,7 @@ namespace VEYMDataParser
 
                     if (!string.IsNullOrEmpty(user.officeLocation))
                     {
-
-                        match = Regex.Match(user.officeLocation, pattern, RegexOptions.IgnoreCase);
+                        match = Regex.Match(user.officeLocation, patternNorm, RegexOptions.IgnoreCase);
                         //Use Regex to find if the names are "Valid"
 
                         ////There are chapters without a -
@@ -105,8 +119,17 @@ namespace VEYMDataParser
                         {
                             stateAbbrev = user.officeLocation.Substring(user.officeLocation.Trim().LastIndexOf(" ") + 1, 2);
 
-                            actuaChapterName = user.officeLocation.Substring(0, user.officeLocation.IndexOf("-") - 1);
-                            shortnedName = actuaChapterName + " " + stateAbbrev;
+                            actualLengthOfChapter = user.officeLocation.IndexOf("-") -1;
+
+                            //Blanket check for super long chapter names
+                            if(actualLengthOfChapter > 29)
+                            {
+                                //Give it from room to append!
+                                actualLengthOfChapter = actualLengthOfChapter = 4;
+                            }
+
+                            actualChapterName = user.officeLocation.Substring(0, actualLengthOfChapter - 1);
+                            shortnedName = actualChapterName + " " + stateAbbrev;
 
                             if (!chaptersAndTheirUsers.ContainsKey(shortnedName))
                             {
@@ -117,6 +140,7 @@ namespace VEYMDataParser
                             outUserValues.Add(UserAsStringArray);
                         }
 
+
                     }
 
                     allUserData.Add(UserAsStringArray);
@@ -124,13 +148,12 @@ namespace VEYMDataParser
             }
         }
 
-
         private void CreateExcel()
         {
             //This is the header that goes on top of each Worksheet
             List<string[]> headerRow = new List<string[]>()
                 {
-                     new string[] { "Name", "Rank/Title","Member ID", "VEYM Email", "Other Email" , "Phone", "Leauge", "Chapter" }
+                     new string[] { "Name", "Rank/Title","Member ID", "VEYM Email", "Other Email" , "Phone", "Leauge", "Chapter", "Leauge-Chapter ID" }
                 };
 
             // Determine the header range (e.g. A1:E1), this is the "Size"
