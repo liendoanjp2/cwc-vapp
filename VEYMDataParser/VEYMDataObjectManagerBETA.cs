@@ -2,11 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.Office.Interop.Excel;
 using OfficeOpenXml;
 
 namespace VEYMDataParser
@@ -54,20 +51,15 @@ namespace VEYMDataParser
         {
             //Temp variable old output
             List<string[]> outUserValues;
-
             //Read the user and place it into the correct sheet
-
             //For use in loop to hold data
-            string[] UserAsStringArray;
-
+            string[] userAsStringArray;
             //Variables used to shorten names in a more "english" manner
             string stateAbbrev;
             string actualChapterName;
             string shortnedName;
-
             string patternNorm = @"^[ a-z0-9A-Z_ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ]+[ ][-][ ][(][a-zA-Z]+[,][ ][a-zA-Z]+[)]$";
             string patternID = @"LD[0-9]{2}-[A-Z]{2}[0-9]+";
-            string patternIDOnly = @"^LD[0-9]{2}-[A-Z]{2}[0-9]+$";
             string leaugeChapterID;
             Match match;
             int actualLengthOfChapter;
@@ -89,7 +81,7 @@ namespace VEYMDataParser
                         }
                     }
 
-                    UserAsStringArray = new string[9] { user.displayName, user.rank, user.memberID, user.mail, user?.otherMails?.FirstOrDefault()?.ToString() ?? "", user.mobilePhone, user.leauge, user.officeLocation, leaugeChapterID };
+                    userAsStringArray = new string[9] { user.displayName, user.rank, user.memberID, user.mail, user?.otherMails?.FirstOrDefault()?.ToString() ?? "", user.mobilePhone, user.leauge, user.officeLocation, leaugeChapterID };
                     if (!string.IsNullOrEmpty(user.leauge))
                     {
                         ldWorkName = "LD " + user.leauge;
@@ -102,7 +94,7 @@ namespace VEYMDataParser
 
                         //add them!
                         leaugesAndTheirUsers.TryGetValue(ldWorkName, out outUserValues);
-                        outUserValues.Add(UserAsStringArray);
+                        outUserValues.Add(userAsStringArray);
                     }
 
                     if (!string.IsNullOrEmpty(user.officeLocation))
@@ -124,8 +116,8 @@ namespace VEYMDataParser
                             //Blanket check for super long chapter names
                             if(actualLengthOfChapter > 29)
                             {
-                                //Give it from room to append!
-                                actualLengthOfChapter = actualLengthOfChapter = 4;
+                                //Give it some room to append!
+                                actualLengthOfChapter = actualLengthOfChapter - (actualLengthOfChapter - 29);
                             }
 
                             actualChapterName = user.officeLocation.Substring(0, actualLengthOfChapter - 1);
@@ -137,13 +129,11 @@ namespace VEYMDataParser
                             }
 
                             chaptersAndTheirUsers.TryGetValue(shortnedName, out outUserValues);
-                            outUserValues.Add(UserAsStringArray);
+                            outUserValues.Add(userAsStringArray);
                         }
-
-
                     }
 
-                    allUserData.Add(UserAsStringArray);
+                    allUserData.Add(userAsStringArray);
                 }
             }
         }
